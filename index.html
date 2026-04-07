@@ -353,6 +353,133 @@ header .subtitle {
   from { transform: scale(0); opacity: 0; }
   to   { transform: scale(1); opacity: var(--target-opacity, 0.4); }
 }
+
+/* ── Detail panel ───────────────────────────────────────── */
+.detail-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(4, 6, 12, 0.7);
+  backdrop-filter: blur(6px);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s ease;
+}
+.detail-overlay.open { opacity: 1; pointer-events: all; }
+
+.detail-card {
+  background: rgba(10, 16, 36, 0.95);
+  border: 1px solid rgba(80, 120, 200, 0.25);
+  border-radius: 20px;
+  padding: 2rem 2.2rem;
+  max-width: 420px;
+  width: 90%;
+  backdrop-filter: blur(24px);
+  box-shadow: 0 16px 64px rgba(0,0,0,0.6), 0 0 40px rgba(80,110,200,0.1);
+  transform: translateY(20px) scale(0.95);
+  transition: transform 0.3s ease;
+  position: relative;
+}
+.detail-overlay.open .detail-card { transform: translateY(0) scale(1); }
+
+.detail-close {
+  position: absolute;
+  top: 14px; right: 16px;
+  background: none; border: none;
+  color: var(--text-muted); font-size: 1.4rem;
+  cursor: pointer; line-height: 1;
+  transition: color 0.15s;
+}
+.detail-close:hover { color: var(--text-primary); }
+
+.detail-card h2 {
+  font-size: 1.2rem; font-weight: 700;
+  color: var(--accent); margin-bottom: 0.2rem;
+}
+.detail-card .detail-sub {
+  font-size: 0.8rem; color: var(--text-muted); margin-bottom: 1.2rem;
+}
+
+.detail-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.8rem 1.5rem;
+  margin-bottom: 1.2rem;
+}
+.detail-grid .dg-label {
+  font-size: 0.7rem; text-transform: uppercase;
+  letter-spacing: 0.06em; color: var(--text-dim);
+}
+.detail-grid .dg-value {
+  font-size: 1rem; font-weight: 700; color: var(--text-primary);
+}
+.detail-grid .dg-compare {
+  font-size: 0.72rem; color: var(--text-muted); margin-top: 1px;
+}
+
+.detail-star-viz {
+  display: flex; align-items: center; justify-content: center;
+  gap: 1.5rem; margin: 1rem 0;
+  padding: 0.8rem 0;
+  border-top: 1px solid rgba(80,110,180,0.12);
+  border-bottom: 1px solid rgba(80,110,180,0.12);
+}
+
+.detail-star-viz .star-label {
+  font-size: 0.65rem; color: var(--text-muted);
+  text-align: center; margin-top: 4px;
+}
+
+.detail-insight {
+  margin-top: 1rem;
+  padding: 0.7rem 1rem;
+  background: rgba(251, 191, 36, 0.08);
+  border: 1px solid rgba(251, 191, 36, 0.15);
+  border-radius: 10px;
+  font-size: 0.78rem;
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+.detail-insight strong { color: var(--accent); }
+
+/* ── Scatter section ────────────────────────────────────── */
+.scatter-section {
+  margin-top: 2.5rem;
+  animation: fadeInUp 0.8s 1s ease both;
+}
+
+.scatter-section h2 {
+  text-align: center;
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin-bottom: 0.4rem;
+  color: var(--text-primary);
+}
+
+.scatter-section .scatter-sub {
+  text-align: center;
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  margin-bottom: 1.2rem;
+  max-width: 560px;
+  margin-left: auto; margin-right: auto;
+}
+
+.scatter-wrapper {
+  background: var(--bg-glass);
+  border: 1px solid var(--glass-border);
+  border-radius: 20px;
+  padding: 1.5rem 1rem 1rem;
+  backdrop-filter: blur(16px);
+  box-shadow: 0 8px 60px rgba(0,0,0,0.4), 0 2px 20px var(--glass-glow), inset 0 1px 0 rgba(255,255,255,0.03);
+}
+
+.scatter-wrapper svg {
+  display: block; margin: 0 auto;
+}
 </style>
 </head>
 <body>
@@ -395,6 +522,14 @@ header .subtitle {
     </div>
   </div>
 
+  <div class="scatter-section" id="scatter-section" style="display:none;">
+    <h2>What kind of stars host Earth-like planets?</h2>
+    <p class="scatter-sub">Every Earth-like planet we've found orbits a small, cool star — none orbit stars like our Sun.</p>
+    <div class="scatter-wrapper">
+      <div id="scatter-area"></div>
+    </div>
+  </div>
+
   <div class="caveat-panel">
     <div class="caveat-icon">&#x1F52D;</div>
     <p>Smaller planets are harder to detect with current instruments. The rarity of Earth-like worlds in this data is partly real and partly a limitation of how we find exoplanets.</p>
@@ -404,6 +539,14 @@ header .subtitle {
 </div>
 
 <div class="tooltip" id="tooltip"></div>
+
+<!-- Detail panel overlay -->
+<div class="detail-overlay" id="detail-overlay">
+  <div class="detail-card" id="detail-card">
+    <button class="detail-close" id="detail-close">&times;</button>
+    <div id="detail-content"></div>
+  </div>
+</div>
 
 <script>
 /* ================================================================
@@ -536,7 +679,7 @@ function processData(rows) {
     const mass   = parseFloat(r.pl_bmasse) || null;
     const temp   = parseFloat(r.pl_eqt) || null;
     return {
-      name: r.pl_name, radius, mass, temp,
+      name: r.pl_name, hostname: r.hostname, radius, mass, temp,
       category: radius ? classify(radius) : null,
       earthLike: (radius && temp) ? isEarthLike(radius, temp) : false
     };
@@ -811,6 +954,7 @@ function buildChart(planets) {
       circle.addEventListener('mouseenter', (e) => showTooltip(e, p));
       circle.addEventListener('mousemove', (e) => moveTooltip(e));
       circle.addEventListener('mouseleave', hideTooltip);
+      if (p.earthLike && !p.isEarth) circle.addEventListener('click', () => showDetail(p));
       svg.appendChild(circle);
       circleIndex++;
     });
@@ -887,6 +1031,295 @@ function buildLegend(visRadius) {
 
 
 /* ================================================================
+   Phase 8 — Star Data
+   ================================================================ */
+async function loadStarsCSV() {
+  const resp = await fetch('stars.csv');
+  const text = await resp.text();
+  const lines = text.split('\n').filter(l => l.trim());
+  const headers = parseCSVLine(lines[0]);
+  const rows = [];
+  for (let i = 1; i < lines.length; i++) {
+    const vals = parseCSVLine(lines[i]);
+    const obj = {};
+    headers.forEach((h, j) => { obj[h] = vals[j] || ''; });
+    rows.push(obj);
+  }
+  return rows;
+}
+
+function starClass(teff) {
+  if (teff == null) return 'Unknown';
+  if (teff >= 7500) return 'A/B/O';
+  if (teff >= 6000) return 'F-type';
+  if (teff >= 5200) return 'G-type (Sun-like)';
+  if (teff >= 3700) return 'K-dwarf';
+  if (teff >= 2400) return 'M-dwarf (Red dwarf)';
+  return 'L/T-type';
+}
+
+function starColor(teff) {
+  if (teff == null) return '#555';
+  if (teff >= 7500) return '#aac8ff';
+  if (teff >= 6000) return '#f8f7ff';
+  if (teff >= 5200) return '#fff4e8';
+  if (teff >= 3700) return '#ffd2a1';
+  if (teff >= 2400) return '#ffaa6e';
+  return '#ff7b5a';
+}
+
+function joinStarData(planets, stars) {
+  const starMap = {};
+  stars.forEach(s => { starMap[s.star_name] = s; });
+  let joined = 0;
+  planets.forEach(p => {
+    const s = starMap[p.hostname];
+    if (s) {
+      p.starTemp = parseFloat(s.teff_k) || null;
+      p.starMass = parseFloat(s.mass_solar) || null;
+      p.starRadius = parseFloat(s.radius_solar) || null;
+      p.starMet = parseFloat(s.metallicity_fe_h) || null;
+      p.starDist = parseFloat(s.distance_pc) || null;
+      p.starName = s.star_name;
+      p.starClass = starClass(p.starTemp);
+      joined++;
+    }
+  });
+  console.log(`Joined ${joined}/${planets.length} planets to star data`);
+}
+
+
+/* ================================================================
+   Phase 9 — Detail Panel
+   ================================================================ */
+const detailOverlay = document.getElementById('detail-overlay');
+const detailContent = document.getElementById('detail-content');
+const detailClose = document.getElementById('detail-close');
+
+detailClose.addEventListener('click', () => detailOverlay.classList.remove('open'));
+detailOverlay.addEventListener('click', (e) => {
+  if (e.target === detailOverlay) detailOverlay.classList.remove('open');
+});
+
+function showDetail(planet) {
+  const sunR = 30; // px for Sun reference circle
+  const hostR = planet.starRadius ? Math.max(4, (planet.starRadius / 1.0) * sunR) : 0;
+  const hostColor = starColor(planet.starTemp);
+
+  let html = `<h2>${planet.name}</h2>`;
+  html += `<div class="detail-sub">orbiting <strong>${planet.starName || 'unknown star'}</strong></div>`;
+
+  html += `<div class="detail-grid">`;
+  html += `<div><div class="dg-label">Planet Radius</div><div class="dg-value">${planet.radius.toFixed(2)} R\u2295</div><div class="dg-compare">${planet.radius < 1 ? 'Smaller' : planet.radius > 1 ? 'Larger' : 'Same size as'} than Earth</div></div>`;
+  html += `<div><div class="dg-label">Planet Temp</div><div class="dg-value">${planet.temp ? Math.round(planet.temp) + ' K' : '?'}</div><div class="dg-compare">${planet.temp ? tempLabel(planet.temp) : ''}</div></div>`;
+  html += `<div><div class="dg-label">Star Type</div><div class="dg-value">${planet.starClass || '?'}</div><div class="dg-compare">${planet.starTemp ? Math.round(planet.starTemp) + ' K' : ''}</div></div>`;
+  html += `<div><div class="dg-label">Star Mass</div><div class="dg-value">${planet.starMass ? planet.starMass.toFixed(2) + ' M\u2609' : '?'}</div><div class="dg-compare">${planet.starMass ? (planet.starMass < 1 ? (planet.starMass * 100).toFixed(0) + '% of Sun' : planet.starMass.toFixed(1) + '\u00d7 Sun') : ''}</div></div>`;
+  html += `<div><div class="dg-label">Star Radius</div><div class="dg-value">${planet.starRadius ? planet.starRadius.toFixed(2) + ' R\u2609' : '?'}</div><div class="dg-compare">${planet.starRadius ? (planet.starRadius < 1 ? (planet.starRadius * 100).toFixed(0) + '% of Sun' : planet.starRadius.toFixed(1) + '\u00d7 Sun') : ''}</div></div>`;
+  html += `<div><div class="dg-label">Distance</div><div class="dg-value">${planet.starDist ? planet.starDist.toFixed(1) + ' pc' : '?'}</div><div class="dg-compare">${planet.starDist ? (planet.starDist * 3.26).toFixed(0) + ' light-years' : ''}</div></div>`;
+  html += `</div>`;
+
+  // Star size comparison
+  if (planet.starRadius) {
+    const capHostR = Math.min(hostR, 60);
+    const svgW = 200, svgH = Math.max(80, capHostR * 2 + 20);
+    html += `<div class="detail-star-viz">
+      <div>
+        <svg width="${svgW}" height="${svgH}" viewBox="0 0 ${svgW} ${svgH}">
+          <circle cx="${svgW * 0.35}" cy="${svgH / 2}" r="${capHostR}" fill="${hostColor}" opacity="0.85"/>
+          <circle cx="${svgW * 0.7}" cy="${svgH / 2}" r="${sunR}" fill="#fff4e8" opacity="0.6" stroke="#fbbf24" stroke-width="1" stroke-dasharray="3,2"/>
+        </svg>
+        <div style="display:flex;justify-content:space-around;padding:0 1rem;">
+          <span class="star-label">${planet.starName}<br>${planet.starRadius.toFixed(2)} R\u2609</span>
+          <span class="star-label">Sun<br>1.00 R\u2609</span>
+        </div>
+      </div>
+    </div>`;
+  }
+
+  html += `<div class="detail-insight"><strong>Key pattern:</strong> All 8 Earth-like exoplanets orbit small, cool K- and M-dwarf stars — none orbit Sun-like stars. These smaller stars make it easier to detect tiny planets via the transit method.</div>`;
+
+  detailContent.innerHTML = html;
+  detailOverlay.classList.add('open');
+}
+
+
+/* ================================================================
+   Phase 10 — Scatter Plot
+   ================================================================ */
+function buildScatter(planets) {
+  const section = document.getElementById('scatter-section');
+  section.style.display = '';
+  const area = document.getElementById('scatter-area');
+  const NS = 'http://www.w3.org/2000/svg';
+
+  // Filter planets with star temp data
+  const pts = planets.filter(p => p.starTemp != null && p.radius != null);
+
+  // Dimensions
+  const W = 1100, H = 500;
+  const margin = { top: 20, right: 30, bottom: 55, left: 70 };
+  const pw = W - margin.left - margin.right;
+  const ph = H - margin.top - margin.bottom;
+
+  // Scales: X = star temp (reversed: hot left, cool right), Y = planet radius (log)
+  const xMin = 2000, xMax = 8000;
+  const yMin = 0.25, yMax = 35;
+
+  function xScale(t) { return margin.left + (1 - (t - xMin) / (xMax - xMin)) * pw; }
+  function yScale(r) {
+    const logMin = Math.log10(yMin), logMax = Math.log10(yMax);
+    return margin.top + (1 - (Math.log10(r) - logMin) / (logMax - logMin)) * ph;
+  }
+
+  const svg = document.createElementNS(NS, 'svg');
+  svg.setAttribute('width', W); svg.setAttribute('height', H);
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+  svg.style.maxWidth = '100%'; svg.style.height = 'auto';
+
+  // Earth-like zone rectangle
+  const zoneX1 = xScale(5000), zoneX2 = xScale(2400);
+  const zoneY1 = yScale(1.5), zoneY2 = yScale(0.8);
+  const zone = document.createElementNS(NS, 'rect');
+  zone.setAttribute('x', Math.min(zoneX1, zoneX2));
+  zone.setAttribute('y', Math.min(zoneY1, zoneY2));
+  zone.setAttribute('width', Math.abs(zoneX2 - zoneX1));
+  zone.setAttribute('height', Math.abs(zoneY2 - zoneY1));
+  zone.setAttribute('fill', 'rgba(251, 191, 36, 0.06)');
+  zone.setAttribute('stroke', 'rgba(251, 191, 36, 0.2)');
+  zone.setAttribute('stroke-width', '1');
+  zone.setAttribute('stroke-dasharray', '6,4');
+  zone.setAttribute('rx', '6');
+  svg.appendChild(zone);
+
+  // Zone label
+  const zLabel = document.createElementNS(NS, 'text');
+  zLabel.setAttribute('x', (Math.min(zoneX1, zoneX2) + Math.abs(zoneX2 - zoneX1) / 2));
+  zLabel.setAttribute('y', Math.min(zoneY1, zoneY2) - 6);
+  zLabel.setAttribute('text-anchor', 'middle');
+  zLabel.setAttribute('fill', 'rgba(251, 191, 36, 0.5)');
+  zLabel.setAttribute('font-size', '10'); zLabel.setAttribute('font-weight', '600');
+  zLabel.setAttribute('font-family', 'inherit');
+  zLabel.textContent = 'EARTH-LIKE ZONE';
+  svg.appendChild(zLabel);
+
+  // Grid lines
+  const xTicks = [2500, 3000, 3500, 4000, 4500, 5000, 5500, 6000, 6500, 7000, 7500];
+  xTicks.forEach(t => {
+    if (t < xMin || t > xMax) return;
+    const x = xScale(t);
+    const line = document.createElementNS(NS, 'line');
+    line.setAttribute('x1', x); line.setAttribute('y1', margin.top);
+    line.setAttribute('x2', x); line.setAttribute('y2', H - margin.bottom);
+    line.setAttribute('stroke', 'rgba(80,110,180,0.07)'); line.setAttribute('stroke-width', '1');
+    svg.appendChild(line);
+    const label = document.createElementNS(NS, 'text');
+    label.setAttribute('x', x); label.setAttribute('y', H - margin.bottom + 18);
+    label.setAttribute('text-anchor', 'middle'); label.setAttribute('fill', '#4a5268');
+    label.setAttribute('font-size', '9'); label.setAttribute('font-family', 'inherit');
+    label.textContent = t >= 1000 ? (t / 1000).toFixed(1) + 'k' : t;
+    svg.appendChild(label);
+  });
+
+  const yTicks = [0.3, 0.5, 1, 2, 4, 8, 15, 30];
+  yTicks.forEach(r => {
+    const y = yScale(r);
+    const line = document.createElementNS(NS, 'line');
+    line.setAttribute('x1', margin.left); line.setAttribute('y1', y);
+    line.setAttribute('x2', W - margin.right); line.setAttribute('y2', y);
+    line.setAttribute('stroke', 'rgba(80,110,180,0.07)'); line.setAttribute('stroke-width', '1');
+    svg.appendChild(line);
+    const label = document.createElementNS(NS, 'text');
+    label.setAttribute('x', margin.left - 10); label.setAttribute('y', y + 3);
+    label.setAttribute('text-anchor', 'end'); label.setAttribute('fill', '#4a5268');
+    label.setAttribute('font-size', '9'); label.setAttribute('font-family', 'inherit');
+    label.textContent = r < 1 ? r.toFixed(1) : Math.round(r);
+    svg.appendChild(label);
+  });
+
+  // Axis labels
+  const xAxisLabel = document.createElementNS(NS, 'text');
+  xAxisLabel.setAttribute('x', margin.left + pw / 2); xAxisLabel.setAttribute('y', H - 8);
+  xAxisLabel.setAttribute('text-anchor', 'middle'); xAxisLabel.setAttribute('fill', '#8892a8');
+  xAxisLabel.setAttribute('font-size', '11'); xAxisLabel.setAttribute('font-weight', '600');
+  xAxisLabel.setAttribute('font-family', 'inherit');
+  xAxisLabel.textContent = 'Star Temperature (K)  \u2190 Hotter          Cooler \u2192';
+  svg.appendChild(xAxisLabel);
+
+  const yAxisLabel = document.createElementNS(NS, 'text');
+  yAxisLabel.setAttribute('x', 16); yAxisLabel.setAttribute('y', margin.top + ph / 2);
+  yAxisLabel.setAttribute('text-anchor', 'middle'); yAxisLabel.setAttribute('fill', '#8892a8');
+  yAxisLabel.setAttribute('font-size', '11'); yAxisLabel.setAttribute('font-weight', '600');
+  yAxisLabel.setAttribute('font-family', 'inherit');
+  yAxisLabel.setAttribute('transform', `rotate(-90, 16, ${margin.top + ph / 2})`);
+  yAxisLabel.textContent = 'Planet Size (Earth radii)';
+  svg.appendChild(yAxisLabel);
+
+  // Sun reference line
+  const sunX = xScale(5778);
+  if (sunX >= margin.left && sunX <= W - margin.right) {
+    const sunLine = document.createElementNS(NS, 'line');
+    sunLine.setAttribute('x1', sunX); sunLine.setAttribute('y1', margin.top);
+    sunLine.setAttribute('x2', sunX); sunLine.setAttribute('y2', H - margin.bottom);
+    sunLine.setAttribute('stroke', 'rgba(251, 191, 36, 0.15)');
+    sunLine.setAttribute('stroke-width', '1');
+    sunLine.setAttribute('stroke-dasharray', '4,4');
+    svg.appendChild(sunLine);
+    const sunLabel = document.createElementNS(NS, 'text');
+    sunLabel.setAttribute('x', sunX); sunLabel.setAttribute('y', margin.top - 5);
+    sunLabel.setAttribute('text-anchor', 'middle'); sunLabel.setAttribute('fill', 'rgba(251,191,36,0.4)');
+    sunLabel.setAttribute('font-size', '9'); sunLabel.setAttribute('font-family', 'inherit');
+    sunLabel.textContent = 'Sun (5778K)';
+    svg.appendChild(sunLabel);
+  }
+
+  // Plot all planets
+  pts.forEach(p => {
+    const st = p.starTemp;
+    if (st < xMin || st > xMax || p.radius < yMin || p.radius > yMax) return;
+    const cx = xScale(st), cy = yScale(p.radius);
+    const dot = document.createElementNS(NS, 'circle');
+    dot.setAttribute('cx', cx); dot.setAttribute('cy', cy);
+    dot.setAttribute('r', p.earthLike ? 5 : 2.5);
+    dot.setAttribute('fill', tempToColor(p.temp));
+    dot.style.opacity = p.earthLike ? '1' : '0.3';
+    dot.style.cursor = 'pointer';
+    dot.style.transition = 'opacity 0.15s';
+
+    if (p.earthLike) {
+      dot.setAttribute('stroke', '#fff'); dot.setAttribute('stroke-width', '1.5');
+      dot.setAttribute('filter', 'url(#earthlike-glow)');
+    }
+
+    dot.addEventListener('mouseenter', e => { dot.style.opacity = '1'; showTooltip(e, p); });
+    dot.addEventListener('mousemove', e => moveTooltip(e));
+    dot.addEventListener('mouseleave', () => { dot.style.opacity = p.earthLike ? '1' : '0.3'; hideTooltip(); });
+    if (p.earthLike) dot.addEventListener('click', () => showDetail(p));
+    svg.appendChild(dot);
+  });
+
+  // Earth reference
+  const earthCx = xScale(5778), earthCy = yScale(1.0);
+  if (earthCx >= margin.left && earthCx <= W - margin.right) {
+    const earthDot = document.createElementNS(NS, 'circle');
+    earthDot.setAttribute('cx', earthCx); earthDot.setAttribute('cy', earthCy);
+    earthDot.setAttribute('r', 6);
+    earthDot.setAttribute('fill', tempToColor(255));
+    earthDot.setAttribute('stroke', '#fbbf24'); earthDot.setAttribute('stroke-width', '2');
+    earthDot.setAttribute('filter', 'url(#earth-glow)');
+    svg.appendChild(earthDot);
+    const eLabel = document.createElementNS(NS, 'text');
+    eLabel.setAttribute('x', earthCx + 10); eLabel.setAttribute('y', earthCy + 4);
+    eLabel.setAttribute('fill', '#fbbf24'); eLabel.setAttribute('font-size', '10');
+    eLabel.setAttribute('font-weight', '700'); eLabel.setAttribute('font-family', 'inherit');
+    eLabel.textContent = 'Earth';
+    svg.appendChild(eLabel);
+  }
+
+  area.appendChild(svg);
+}
+
+
+/* ================================================================
    Init
    ================================================================ */
 (async function main() {
@@ -902,15 +1335,23 @@ function buildLegend(visRadius) {
     const el = planets.filter(p => p.earthLike);
     console.log(`Earth-like planets: ${el.length}`, el.map(p => p.name));
 
+    // Phase 8: Load and join star data
+    const stars = await loadStarsCSV();
+    console.log(`Loaded: ${stars.length} stars`);
+    joinStarData(planets, stars);
+
     document.querySelector('.headline-stat .total').textContent = planets.length.toLocaleString();
     animateCounter(document.getElementById('big-number'), 8, 1600);
 
     const { visRadius } = buildChart(planets);
     buildLegend(visRadius);
+
+    // Phase 10: Scatter plot
+    buildScatter(planets);
   } catch (err) {
     console.error('Failed to load data:', err);
     document.getElementById('chart-area').innerHTML =
-      '<p style="color:#ef4444;text-align:center;padding:2rem;">Failed to load exoplanet data. Make sure exoplanets.csv is in the same directory.</p>';
+      '<p style="color:#ef4444;text-align:center;padding:2rem;">Failed to load exoplanet data. Make sure exoplanets.csv and stars.csv are in the same directory.</p>';
   }
 })();
 </script>

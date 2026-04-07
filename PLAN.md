@@ -6,9 +6,76 @@ Build a single-page interactive bubble chart showing 1,174 exoplanets as circles
 
 **Audience:** General public, non-technical.
 **Format:** Single HTML file (HTML + CSS + JS inline), zero external dependencies. Dark space theme.
-**Data:** `exoplanets.csv` — 1,174 rows, loaded via `fetch()` at runtime.
+**Data:**
+- `exoplanets.csv` — 1,174 planets, loaded via `fetch()` at runtime
+- `stars.csv` — 972 host stars, joined on `hostname` ↔ `star_name`
 
 See `DESIGN.md` for full design rationale, alternatives considered, and risk mitigations.
+
+---
+
+## Phase 8: Star Data Integration (NEW)
+
+**Goal:** Load `stars.csv`, join to planet data, expose star properties.
+
+### Deliverables
+
+1. `loadStarsCSV()` — fetch and parse `stars.csv`
+2. Join stars to planets on `hostname` ↔ `star_name`
+3. Classify stars by spectral type based on `teff_k`:
+   - M dwarf (2400–3700K), K dwarf (3700–5200K), G/Sun-like (5200–6000K), F (6000–7500K), A/B/O (>7500K)
+4. Each planet object gains: `starTemp`, `starMass`, `starRadius`, `starMetallicity`, `starDistance`, `starClass`
+
+### Verification
+
+- All 1,174 planets joined to a star (0 orphans)
+- Star class distribution: G ~421, F ~243, K ~204, M ~71
+
+---
+
+## Phase 9: Star Context Panel (NEW)
+
+**Goal:** When a user clicks an Earth-like planet, show its host star properties in a detail panel.
+
+### Deliverables
+
+1. Slide-in detail panel (right side or modal overlay) showing:
+   - Star name, spectral class, temperature, mass, radius
+   - Planet name, radius, temperature
+   - Comparison to the Sun (e.g., "0.24× Sun's mass")
+   - Visual: small star circle sized relative to the Sun
+2. Click any Earth-like planet → panel appears
+3. Click elsewhere or X → panel closes
+4. Key insight callout: "All 8 Earth-like planets orbit small, cool stars — not Sun-like stars"
+
+### Verification
+
+- Clicking each of the 8 Earth-like candidates opens the panel with correct star data
+- Panel doesn't overflow viewport
+- Panel closes cleanly
+
+---
+
+## Phase 10: Star–Planet Scatter Plot (NEW)
+
+**Goal:** Add a second visualization below the bubble chart — a scatter plot of star temperature vs. planet radius, showing where Earth-like planets cluster.
+
+### Deliverables
+
+1. SVG scatter plot: X = star temperature (K, reversed: hot left, cool right), Y = planet radius (log scale)
+2. Each dot = one planet, colored by temperature (same palette as bubble chart)
+3. Earth-like zone highlighted as a shaded rectangle (star temp 2400–5000K, planet radius 0.8–1.5)
+4. Earth reference marker inside the zone
+5. The 8 Earth-like candidates highlighted within the zone
+6. Axis labels: "Star Temperature (K)" and "Planet Size (Earth radii)"
+7. Section title: "What kind of stars host Earth-like planets?"
+
+### Verification
+
+- All 1,174 planets plotted (minus those missing star temp)
+- Earth-like zone rectangle visible
+- 8 highlighted dots inside the zone
+- Axes readable, scatter not clipped
 
 ---
 
