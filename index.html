@@ -1,0 +1,918 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Lonely Earth</title>
+<style>
+/* ── Reset & Root ───────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg-deep:       #04060c;
+  --bg-glass:      rgba(12, 18, 40, 0.65);
+  --glass-border:  rgba(80, 110, 180, 0.18);
+  --glass-glow:    rgba(80, 110, 200, 0.08);
+  --text-primary:  #eae8e4;
+  --text-muted:    #8892a8;
+  --text-dim:      #4a5268;
+  --accent:        #fbbf24;
+  --accent-glow:   rgba(251, 191, 36, 0.5);
+  --font-stack:    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+html { scroll-behavior: smooth; }
+
+body {
+  font-family: var(--font-stack);
+  background: var(--bg-deep);
+  color: var(--text-primary);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* ── Animated star field ────────────────────────────────── */
+.stars, .stars2, .stars3 {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+}
+.stars  { background: transparent; }
+.stars2 { background: transparent; }
+.stars3 { background: transparent; }
+
+/* ── Nebula wash ────────────────────────────────────────── */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 80% 60% at 20% 50%, rgba(59, 40, 120, 0.12), transparent),
+    radial-gradient(ellipse 60% 50% at 80% 30%, rgba(30, 60, 130, 0.1), transparent),
+    radial-gradient(ellipse 40% 40% at 50% 90%, rgba(100, 40, 80, 0.06), transparent);
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ── Layout ─────────────────────────────────────────────── */
+.container {
+  position: relative;
+  z-index: 1;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 2.5rem 1.5rem 3rem;
+}
+
+/* ── Header ─────────────────────────────────────────────── */
+header {
+  text-align: center;
+  margin-bottom: 1.2rem;
+  animation: fadeInDown 0.8s ease both;
+}
+
+header h1 {
+  font-size: 3.2rem;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  color: var(--text-primary);
+  margin-bottom: 0.5rem;
+  text-shadow: 0 0 60px rgba(251, 191, 36, 0.15);
+}
+
+header h1 .earth-word {
+  color: var(--accent);
+  text-shadow: 0 0 30px var(--accent-glow), 0 0 80px rgba(251, 191, 36, 0.2);
+}
+
+header .subtitle {
+  font-size: 1.08rem;
+  color: var(--text-muted);
+  max-width: 580px;
+  margin: 0 auto;
+  line-height: 1.6;
+}
+
+/* ── Headline stat ──────────────────────────────────────── */
+.headline-stat {
+  text-align: center;
+  margin: 1.5rem 0 2rem;
+  padding: 1.4rem 1.5rem;
+  background: var(--bg-glass);
+  border: 1px solid var(--glass-border);
+  border-radius: 16px;
+  backdrop-filter: blur(16px);
+  box-shadow: 0 4px 30px var(--glass-glow), inset 0 1px 0 rgba(255,255,255,0.04);
+  animation: fadeInUp 0.8s 0.2s ease both;
+}
+
+.headline-stat .big-number {
+  font-size: 3.5rem;
+  font-weight: 800;
+  color: var(--accent);
+  text-shadow: 0 0 40px var(--accent-glow);
+  line-height: 1;
+}
+
+.headline-stat .context {
+  font-size: 1.1rem;
+  color: var(--text-primary);
+  margin-top: 0.3rem;
+}
+
+.headline-stat .context .total {
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+/* ── Chart container ────────────────────────────────────── */
+.chart-wrapper {
+  background: var(--bg-glass);
+  border: 1px solid var(--glass-border);
+  border-radius: 20px;
+  padding: 1.5rem 1rem 1rem;
+  backdrop-filter: blur(16px);
+  overflow: hidden;
+  box-shadow: 0 8px 60px rgba(0,0,0,0.4), 0 2px 20px var(--glass-glow), inset 0 1px 0 rgba(255,255,255,0.03);
+  animation: fadeInUp 0.8s 0.4s ease both;
+}
+
+.chart-wrapper svg {
+  display: block;
+  margin: 0 auto;
+}
+
+/* ── Tooltip ────────────────────────────────────────────── */
+.tooltip {
+  position: fixed;
+  pointer-events: none;
+  background: rgba(8, 12, 24, 0.96);
+  border: 1px solid rgba(100, 130, 200, 0.3);
+  border-radius: 12px;
+  padding: 0.75rem 1rem;
+  font-size: 0.82rem;
+  line-height: 1.5;
+  color: var(--text-primary);
+  backdrop-filter: blur(20px);
+  opacity: 0;
+  transition: opacity 0.12s ease;
+  z-index: 100;
+  max-width: 280px;
+  box-shadow: 0 12px 40px rgba(0,0,0,0.6), 0 0 20px rgba(80,110,200,0.1);
+}
+
+.tooltip.visible { opacity: 1; }
+
+.tooltip .tt-name {
+  font-weight: 700;
+  font-size: 0.95rem;
+  margin-bottom: 6px;
+  color: var(--accent);
+}
+
+.tooltip .tt-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 1.2rem;
+}
+
+.tooltip .tt-label { color: var(--text-muted); }
+.tooltip .tt-value { font-weight: 600; }
+
+.tooltip .tt-badge {
+  display: inline-block;
+  margin-top: 8px;
+  padding: 3px 10px;
+  border-radius: 8px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  background: rgba(251, 191, 36, 0.15);
+  color: var(--accent);
+  border: 1px solid rgba(251, 191, 36, 0.2);
+}
+
+/* ── Legend ──────────────────────────────────────────────── */
+.legend-section {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.5rem;
+  justify-content: center;
+  align-items: flex-start;
+  margin: 2rem 0 1.8rem;
+  animation: fadeInUp 0.8s 0.6s ease both;
+}
+
+.legend-card {
+  background: var(--bg-glass);
+  border: 1px solid var(--glass-border);
+  border-radius: 14px;
+  padding: 1rem 1.4rem;
+  backdrop-filter: blur(16px);
+  box-shadow: 0 4px 20px var(--glass-glow), inset 0 1px 0 rgba(255,255,255,0.03);
+}
+
+.legend-card h3 {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  margin-bottom: 0.7rem;
+}
+
+.temp-gradient-bar {
+  width: 220px;
+  height: 12px;
+  border-radius: 6px;
+  margin-bottom: 6px;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.3);
+}
+
+.temp-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.62rem;
+  color: var(--text-dim);
+}
+
+.size-reference {
+  display: flex;
+  align-items: flex-end;
+  gap: 1.2rem;
+}
+
+.size-ref-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.size-ref-item .ref-label {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+}
+
+.size-ref-item .ref-value {
+  font-size: 0.6rem;
+  color: var(--text-dim);
+}
+
+/* ── Caveat panel ───────────────────────────────────────── */
+.caveat-panel {
+  max-width: 640px;
+  margin: 0 auto 1rem;
+  padding: 1rem 1.4rem;
+  background: var(--bg-glass);
+  border: 1px solid var(--glass-border);
+  border-radius: 14px;
+  backdrop-filter: blur(16px);
+  text-align: center;
+  box-shadow: 0 4px 20px var(--glass-glow), inset 0 1px 0 rgba(255,255,255,0.03);
+  animation: fadeInUp 0.8s 0.8s ease both;
+}
+
+.caveat-panel .caveat-icon { font-size: 1.1rem; margin-bottom: 0.3rem; }
+
+.caveat-panel p {
+  font-size: 0.8rem;
+  line-height: 1.6;
+  color: var(--text-muted);
+}
+
+/* ── Attribution ────────────────────────────────────────── */
+.attribution {
+  text-align: center;
+  font-size: 0.68rem;
+  color: var(--text-dim);
+  margin-top: 1.5rem;
+  animation: fadeInUp 0.8s 1s ease both;
+}
+
+/* ── Loading state ──────────────────────────────────────── */
+.loading {
+  text-align: center;
+  padding: 4rem 0;
+  color: var(--text-muted);
+  font-size: 1rem;
+}
+
+.loading .spinner {
+  display: inline-block;
+  width: 32px;
+  height: 32px;
+  border: 3px solid rgba(80,110,180,0.2);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  margin-bottom: 1rem;
+}
+
+/* ── SVG circles ────────────────────────────────────────── */
+.planet-circle {
+  cursor: pointer;
+  transition: filter 0.2s ease;
+}
+
+.planet-circle:hover {
+  opacity: 1 !important;
+  filter: brightness(1.3) drop-shadow(0 0 6px rgba(255,255,255,0.3));
+}
+
+/* ── Animations ─────────────────────────────────────────── */
+@keyframes spin { to { transform: rotate(360deg); } }
+
+@keyframes fadeInDown {
+  from { opacity: 0; transform: translateY(-20px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(24px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes earthPulse {
+  0%, 100% { r: 0; opacity: 0; }
+  50%      { opacity: 0.6; }
+}
+
+@keyframes twinkle1 {
+  0%, 100% { opacity: 0.3; }
+  50% { opacity: 1; }
+}
+@keyframes twinkle2 {
+  0%, 100% { opacity: 0.5; }
+  40% { opacity: 0.1; }
+}
+@keyframes twinkle3 {
+  0%, 100% { opacity: 0.2; }
+  60% { opacity: 0.8; }
+}
+
+@keyframes circleEntrance {
+  from { transform: scale(0); opacity: 0; }
+  to   { transform: scale(1); opacity: var(--target-opacity, 0.4); }
+}
+</style>
+</head>
+<body>
+
+<!-- Star layers (generated by JS) -->
+<canvas id="stars-canvas" style="position:fixed;inset:0;z-index:0;pointer-events:none;"></canvas>
+
+<div class="container">
+  <header>
+    <h1>The Lonely <span class="earth-word">Earth</span></h1>
+    <p class="subtitle">Among the worlds we've found beyond our solar system, planets like ours are extraordinarily rare.</p>
+  </header>
+
+  <div class="headline-stat">
+    <div class="big-number" id="big-number">0</div>
+    <div class="context">out of <span class="total">1,174</span> exoplanets resemble Earth in both size and temperature</div>
+  </div>
+
+  <div class="chart-wrapper">
+    <div id="chart-area" class="loading">
+      <div class="spinner"></div>
+      <div>Loading exoplanet data...</div>
+    </div>
+  </div>
+
+  <div class="legend-section" id="legend-section" style="display:none;">
+    <div class="legend-card">
+      <h3>Temperature</h3>
+      <div class="temp-gradient-bar" id="temp-gradient"></div>
+      <div class="temp-labels">
+        <span>Cold (0 K)</span>
+        <span>Mild</span>
+        <span>Hot</span>
+        <span>Scorching (3000+ K)</span>
+      </div>
+    </div>
+    <div class="legend-card">
+      <h3>Planet Size (Earth radii)</h3>
+      <div class="size-reference" id="size-ref"></div>
+    </div>
+  </div>
+
+  <div class="caveat-panel">
+    <div class="caveat-icon">&#x1F52D;</div>
+    <p>Smaller planets are harder to detect with current instruments. The rarity of Earth-like worlds in this data is partly real and partly a limitation of how we find exoplanets.</p>
+  </div>
+
+  <div class="attribution">Data: NASA Exoplanet Archive &middot; Visualization: The Lonely Earth</div>
+</div>
+
+<div class="tooltip" id="tooltip"></div>
+
+<script>
+/* ================================================================
+   Star field (canvas)
+   ================================================================ */
+(function initStars() {
+  const canvas = document.getElementById('stars-canvas');
+  const ctx = canvas.getContext('2d');
+  let stars = [];
+  const STAR_COUNT = 220;
+
+  function resize() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+  }
+
+  function createStars() {
+    stars = [];
+    for (let i = 0; i < STAR_COUNT; i++) {
+      stars.push({
+        x: Math.random() * canvas.width,
+        y: Math.random() * canvas.height,
+        r: Math.random() * 1.4 + 0.3,
+        baseAlpha: Math.random() * 0.6 + 0.2,
+        twinkleSpeed: Math.random() * 0.003 + 0.001,
+        twinkleOffset: Math.random() * Math.PI * 2
+      });
+    }
+  }
+
+  let t = 0;
+  function draw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    t += 1;
+    for (const s of stars) {
+      const alpha = s.baseAlpha + Math.sin(t * s.twinkleSpeed + s.twinkleOffset) * 0.3;
+      ctx.beginPath();
+      ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(200, 210, 240, ${Math.max(0.05, Math.min(1, alpha))})`;
+      ctx.fill();
+    }
+    requestAnimationFrame(draw);
+  }
+
+  resize();
+  createStars();
+  draw();
+  window.addEventListener('resize', () => { resize(); createStars(); });
+})();
+
+
+/* ================================================================
+   Animated counter
+   ================================================================ */
+function animateCounter(el, target, duration = 1200) {
+  const start = performance.now();
+  function tick(now) {
+    const t = Math.min(1, (now - start) / duration);
+    const eased = 1 - Math.pow(1 - t, 3); // ease-out cubic
+    el.textContent = Math.round(eased * target);
+    if (t < 1) requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
+}
+
+
+/* ================================================================
+   Data Layer
+   ================================================================ */
+const CATEGORIES = [
+  { key: 'sub-earth',     label: 'Sub-Earth',     range: '< 0.8 R\u2295',  min: 0,    max: 0.8   },
+  { key: 'earth-size',    label: 'Earth-size',     range: '0.8 \u2013 1.25',       min: 0.8,  max: 1.25  },
+  { key: 'super-earth',   label: 'Super-Earth',    range: '1.25 \u2013 2.0',       min: 1.25, max: 2.0   },
+  { key: 'mini-neptune',  label: 'Mini-Neptune',   range: '2.0 \u2013 4.0',        min: 2.0,  max: 4.0   },
+  { key: 'neptune-like',  label: 'Neptune-like',   range: '4.0 \u2013 6.0',        min: 4.0,  max: 6.0   },
+  { key: 'sub-saturn',    label: 'Sub-Saturn',     range: '6.0 \u2013 10.0',       min: 6.0,  max: 10.0  },
+  { key: 'jupiter-like',  label: 'Jupiter-like',   range: '10.0 \u2013 15.0',      min: 10.0, max: 15.0  },
+  { key: 'super-jupiter', label: 'Super-Jupiter',  range: '> 15.0',        min: 15.0, max: Infinity }
+];
+
+function parseCSVLine(line) {
+  const fields = [];
+  let current = '';
+  let inQuotes = false;
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (inQuotes) {
+      if (ch === '"' && line[i + 1] === '"') { current += '"'; i++; }
+      else if (ch === '"') { inQuotes = false; }
+      else { current += ch; }
+    } else {
+      if (ch === '"') { inQuotes = true; }
+      else if (ch === ',') { fields.push(current.trim()); current = ''; }
+      else { current += ch; }
+    }
+  }
+  fields.push(current.trim());
+  return fields;
+}
+
+async function loadCSV() {
+  const resp = await fetch('exoplanets.csv');
+  const text = await resp.text();
+  const lines = text.split('\n').filter(l => l.trim());
+  const headers = parseCSVLine(lines[0]);
+  const rows = [];
+  for (let i = 1; i < lines.length; i++) {
+    const vals = parseCSVLine(lines[i]);
+    const obj = {};
+    headers.forEach((h, j) => { obj[h] = vals[j] || ''; });
+    rows.push(obj);
+  }
+  return rows;
+}
+
+function classify(radius) {
+  for (const cat of CATEGORIES) {
+    if (radius < cat.max || (cat.max === Infinity && radius >= cat.min)) return cat.key;
+  }
+  return 'super-jupiter';
+}
+
+function isEarthLike(radius, temp) {
+  return radius >= 0.8 && radius <= 1.5 && temp >= 200 && temp <= 350;
+}
+
+function processData(rows) {
+  return rows.map(r => {
+    const radius = parseFloat(r.pl_rade) || null;
+    const mass   = parseFloat(r.pl_bmasse) || null;
+    const temp   = parseFloat(r.pl_eqt) || null;
+    return {
+      name: r.pl_name, radius, mass, temp,
+      category: radius ? classify(radius) : null,
+      earthLike: (radius && temp) ? isEarthLike(radius, temp) : false
+    };
+  }).filter(p => p.radius != null);
+}
+
+
+/* ================================================================
+   Color
+   ================================================================ */
+function tempToColor(temp) {
+  if (temp == null) return '#444960';
+  const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+  if (temp <= 300) return lerpColor('#4a8cdf', '#30d6aa', clamp(temp / 300, 0, 1));
+  if (temp <= 800) return lerpColor('#30d6aa', '#f5a623', clamp((temp - 300) / 500, 0, 1));
+  if (temp <= 1800) return lerpColor('#f5a623', '#e84545', clamp((temp - 800) / 1000, 0, 1));
+  return lerpColor('#e84545', '#6b1a1a', clamp((temp - 1800) / 2000, 0, 1));
+}
+
+function lerpColor(a, b, t) {
+  const p = (s, i) => parseInt(s.slice(i, i + 2), 16);
+  const r = Math.round(p(a,1) + (p(b,1) - p(a,1)) * t);
+  const g = Math.round(p(a,3) + (p(b,3) - p(a,3)) * t);
+  const bl = Math.round(p(a,5) + (p(b,5) - p(a,5)) * t);
+  return `rgb(${r},${g},${bl})`;
+}
+
+function tempLabel(t) {
+  if (t == null) return 'Unknown';
+  if (t < 300) return 'Cold'; if (t < 600) return 'Mild';
+  if (t < 1500) return 'Hot'; return 'Scorching';
+}
+
+// Returns a lighter version of a color for radial gradient highlight
+function lightenColor(color, amt) {
+  const m = color.match(/rgb\((\d+),(\d+),(\d+)\)/);
+  if (!m) return color;
+  const r = Math.min(255, +m[1] + amt);
+  const g = Math.min(255, +m[2] + amt);
+  const b = Math.min(255, +m[3] + amt);
+  return `rgb(${r},${g},${b})`;
+}
+
+
+/* ================================================================
+   Chart
+   ================================================================ */
+function buildChart(planets) {
+  const chartArea = document.getElementById('chart-area');
+  const NS = 'http://www.w3.org/2000/svg';
+
+  // Group + add Earth
+  const groups = {};
+  CATEGORIES.forEach(c => { groups[c.key] = []; });
+  planets.forEach(p => { if (groups[p.category]) groups[p.category].push(p); });
+
+  const earthRef = { name: 'Earth', radius: 1.0, mass: 1.0, temp: 255,
+    category: 'earth-size', earthLike: true, isEarth: true };
+  groups['earth-size'].push(earthRef);
+
+  Object.values(groups).forEach(arr => arr.sort((a, b) => {
+    if (a.isEarth) return -1; if (b.isEarth) return 1;
+    if (a.earthLike && !b.earthLike) return -1;
+    if (!a.earthLike && b.earthLike) return 1;
+    return b.radius - a.radius;
+  }));
+
+  // Sizing
+  const MIN_VIS_R = 2.5, MAX_VIS_R = 12;
+  const sf = MAX_VIS_R / Math.sqrt(33.6);
+  function visRadius(r) { return Math.max(MIN_VIS_R, Math.sqrt(r) * sf); }
+
+  // Layout
+  const svgWidth = 1140, sidePad = 16, colGap = 6, topPad = 35;
+  const usable = svgWidth - 2 * sidePad - colGap * 7;
+  const baseW = 70, bonus = usable - baseW * 8;
+  const colAreas = CATEGORIES.map(c =>
+    groups[c.key].reduce((s, p) => s + Math.PI * visRadius(p.radius) ** 2, 0));
+  const totalA = colAreas.reduce((s, a) => s + a, 0);
+  const colW = colAreas.map(a => baseW + (a / totalA) * Math.max(0, bonus));
+
+  // Pack
+  const columnData = [];
+  let xOff = sidePad;
+  CATEGORIES.forEach((cat, ci) => {
+    const w = colW[ci], arr = groups[cat.key], circles = [], placed = [];
+    arr.forEach(planet => {
+      const vr = visRadius(planet.radius);
+      const mn = xOff + vr, mx = xOff + w - vr;
+      let bx, by;
+      if (!placed.length) { bx = xOff + w / 2; by = topPad + vr; }
+      else {
+        let best = Infinity;
+        const steps = Math.max(5, Math.ceil(w / (vr * 0.7)));
+        for (let s = 0; s < steps; s++) {
+          const tx = mn >= mx ? xOff + w / 2 : mn + (mx - mn) * (s / Math.max(1, steps - 1));
+          let ly = topPad + vr;
+          for (const p of placed) {
+            const dx = tx - p.cx, md = vr + p.r + 1;
+            if (Math.abs(dx) < md) ly = Math.max(ly, p.cy + Math.sqrt(Math.max(0, md * md - dx * dx)));
+          }
+          if (ly < best) { best = ly; bx = tx; by = ly; }
+        }
+      }
+      placed.push({ cx: bx, cy: by, r: vr });
+      circles.push({ cx: bx, cy: by, vr, planet });
+    });
+    columnData.push({ x: xOff, width: w, circles, cat });
+    xOff += w + colGap;
+  });
+
+  // SVG dimensions
+  let maxY = 0;
+  columnData.forEach(c => c.circles.forEach(d => { maxY = Math.max(maxY, d.cy + d.vr); }));
+  const labelH = 50, svgH = maxY + 20 + labelH;
+
+  const svg = document.createElementNS(NS, 'svg');
+  svg.setAttribute('width', svgWidth);
+  svg.setAttribute('height', svgH);
+  svg.setAttribute('viewBox', `0 0 ${svgWidth} ${svgH}`);
+  svg.style.maxWidth = '100%';
+  svg.style.height = 'auto';
+
+  // Defs: filters + radial gradients
+  const defs = document.createElementNS(NS, 'defs');
+  defs.innerHTML = `
+    <filter id="earth-glow" x="-150%" y="-150%" width="400%" height="400%">
+      <feGaussianBlur stdDeviation="5" result="blur"/>
+      <feFlood flood-color="#fbbf24" flood-opacity="0.8" result="color"/>
+      <feComposite in="color" in2="blur" operator="in" result="glow"/>
+      <feMerge>
+        <feMergeNode in="glow"/>
+        <feMergeNode in="glow"/>
+        <feMergeNode in="glow"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <filter id="earthlike-glow" x="-100%" y="-100%" width="300%" height="300%">
+      <feGaussianBlur stdDeviation="3" result="blur"/>
+      <feFlood flood-color="#ffffff" flood-opacity="0.55" result="color"/>
+      <feComposite in="color" in2="blur" operator="in" result="glow"/>
+      <feMerge>
+        <feMergeNode in="glow"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <filter id="hover-glow" x="-60%" y="-60%" width="220%" height="220%">
+      <feGaussianBlur stdDeviation="2" result="blur"/>
+      <feFlood flood-color="#ffffff" flood-opacity="0.25" result="color"/>
+      <feComposite in="color" in2="blur" operator="in" result="glow"/>
+      <feMerge>
+        <feMergeNode in="glow"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  `;
+  svg.appendChild(defs);
+
+  // Create radial gradients for 3D sphere effect
+  let gradId = 0;
+  function makeGradient(baseColor) {
+    const id = `pg${gradId++}`;
+    const grad = document.createElementNS(NS, 'radialGradient');
+    grad.setAttribute('id', id);
+    grad.setAttribute('cx', '35%');
+    grad.setAttribute('cy', '30%');
+    grad.setAttribute('r', '65%');
+    const s1 = document.createElementNS(NS, 'stop');
+    s1.setAttribute('offset', '0%');
+    s1.setAttribute('stop-color', lightenColor(baseColor, 80));
+    const s2 = document.createElementNS(NS, 'stop');
+    s2.setAttribute('offset', '50%');
+    s2.setAttribute('stop-color', baseColor);
+    const s3 = document.createElementNS(NS, 'stop');
+    s3.setAttribute('offset', '100%');
+    s3.setAttribute('stop-color', lightenColor(baseColor, -40));
+    grad.appendChild(s1); grad.appendChild(s2); grad.appendChild(s3);
+    defs.appendChild(grad);
+    return `url(#${id})`;
+  }
+
+  // Column separators + labels
+  const lbY = svgH - labelH + 10;
+  columnData.forEach((col, i) => {
+    if (i > 0) {
+      const ln = document.createElementNS(NS, 'line');
+      ln.setAttribute('x1', col.x - colGap / 2); ln.setAttribute('y1', 8);
+      ln.setAttribute('x2', col.x - colGap / 2); ln.setAttribute('y2', lbY - 8);
+      ln.setAttribute('stroke', 'rgba(80,110,180,0.08)'); ln.setAttribute('stroke-width', '1');
+      svg.appendChild(ln);
+    }
+    const cx = col.x + col.width / 2;
+    const mkText = (y, text, fill, size, weight) => {
+      const t = document.createElementNS(NS, 'text');
+      t.setAttribute('x', cx); t.setAttribute('y', y);
+      t.setAttribute('text-anchor', 'middle'); t.setAttribute('fill', fill);
+      t.setAttribute('font-size', size); t.setAttribute('font-weight', weight);
+      t.setAttribute('font-family', 'inherit');
+      t.textContent = text;
+      svg.appendChild(t);
+    };
+    mkText(lbY, col.cat.label.toUpperCase(), '#8892a8', '8.5', '600');
+    mkText(lbY + 15, col.circles.length + (col.cat.key === 'earth-size' ? '*' : ''), '#eae8e4', '12', '700');
+    mkText(lbY + 28, col.cat.range, '#4a5268', '7.5', '400');
+  });
+
+  // Draw circles with 3D gradients and staggered entrance
+  let circleIndex = 0;
+  columnData.forEach(col => {
+    col.circles.forEach(c => {
+      const p = c.planet;
+      const baseColor = tempToColor(p.temp);
+      const gradUrl = makeGradient(baseColor);
+
+      const circle = document.createElementNS(NS, 'circle');
+      circle.setAttribute('cx', c.cx);
+      circle.setAttribute('cy', c.cy);
+      circle.setAttribute('r', c.vr);
+      circle.setAttribute('fill', gradUrl);
+      circle.classList.add('planet-circle');
+
+      // Staggered entrance animation
+      const delay = circleIndex * 0.4; // ms per circle
+      circle.style.transformOrigin = `${c.cx}px ${c.cy}px`;
+      circle.style.animation = `circleEntrance 0.4s ${delay}ms ease both`;
+
+      if (p.isEarth) {
+        circle.setAttribute('filter', 'url(#earth-glow)');
+        circle.setAttribute('stroke', '#fbbf24');
+        circle.setAttribute('stroke-width', '2.5');
+        circle.style.opacity = '1';
+        circle.style.setProperty('--target-opacity', '1');
+
+        // Pulsing ring
+        const pulse = document.createElementNS(NS, 'circle');
+        pulse.setAttribute('cx', c.cx); pulse.setAttribute('cy', c.cy);
+        pulse.setAttribute('fill', 'none'); pulse.setAttribute('stroke', '#fbbf24');
+        pulse.setAttribute('stroke-width', '1');
+        pulse.innerHTML = `
+          <animate attributeName="r" values="${c.vr + 2};${c.vr + 10};${c.vr + 2}" dur="2.5s" repeatCount="indefinite" />
+          <animate attributeName="opacity" values="0.6;0;0.6" dur="2.5s" repeatCount="indefinite" />
+        `;
+        svg.appendChild(pulse);
+
+        // Earth label
+        const label = document.createElementNS(NS, 'text');
+        label.setAttribute('x', c.cx); label.setAttribute('y', c.cy - c.vr - 12);
+        label.setAttribute('text-anchor', 'middle'); label.setAttribute('fill', '#fbbf24');
+        label.setAttribute('font-size', '11'); label.setAttribute('font-weight', '800');
+        label.setAttribute('font-family', 'inherit');
+        label.setAttribute('letter-spacing', '0.06em');
+        label.textContent = 'EARTH';
+        svg.appendChild(label);
+
+        const conn = document.createElementNS(NS, 'line');
+        conn.setAttribute('x1', c.cx); conn.setAttribute('y1', c.cy - c.vr - 2);
+        conn.setAttribute('x2', c.cx); conn.setAttribute('y2', c.cy - c.vr - 9);
+        conn.setAttribute('stroke', '#fbbf24'); conn.setAttribute('stroke-width', '1');
+        conn.setAttribute('opacity', '0.5');
+        svg.appendChild(conn);
+      } else if (p.earthLike) {
+        circle.setAttribute('filter', 'url(#earthlike-glow)');
+        circle.setAttribute('stroke', 'rgba(255,255,255,0.7)');
+        circle.setAttribute('stroke-width', '1.5');
+        circle.style.opacity = '0.95';
+        circle.style.setProperty('--target-opacity', '0.95');
+      } else {
+        circle.style.opacity = '0.45';
+        circle.style.setProperty('--target-opacity', '0.45');
+      }
+
+      circle.addEventListener('mouseenter', (e) => showTooltip(e, p));
+      circle.addEventListener('mousemove', (e) => moveTooltip(e));
+      circle.addEventListener('mouseleave', hideTooltip);
+      svg.appendChild(circle);
+      circleIndex++;
+    });
+  });
+
+  chartArea.innerHTML = '';
+  chartArea.classList.remove('loading');
+  chartArea.appendChild(svg);
+  return { columnData, visRadius };
+}
+
+
+/* ================================================================
+   Tooltips
+   ================================================================ */
+const tooltip = document.getElementById('tooltip');
+
+function showTooltip(e, planet) {
+  const catLabel = CATEGORIES.find(c => c.key === planet.category)?.label || '';
+  const tl = tempLabel(planet.temp);
+  let h = `<div class="tt-name">${planet.name}${planet.isEarth ? ' (reference)' : ''}</div>`;
+  h += `<div class="tt-row"><span class="tt-label">Radius</span><span class="tt-value">${planet.radius.toFixed(2)} Earth radii</span></div>`;
+  if (planet.mass != null) h += `<div class="tt-row"><span class="tt-label">Mass</span><span class="tt-value">${planet.mass.toFixed(1)} Earth masses</span></div>`;
+  if (planet.temp != null) h += `<div class="tt-row"><span class="tt-label">Temp</span><span class="tt-value">${Math.round(planet.temp)} K (${tl})</span></div>`;
+  h += `<div class="tt-row"><span class="tt-label">Category</span><span class="tt-value">${catLabel}</span></div>`;
+  if (planet.earthLike) h += `<div class="tt-badge">${planet.isEarth ? '\u2302 Home' : '\u2248 Earth-like'}</div>`;
+  tooltip.innerHTML = h;
+  tooltip.classList.add('visible');
+  moveTooltip(e);
+}
+
+function moveTooltip(e) {
+  const pad = 16;
+  let x = e.clientX + pad, y = e.clientY + pad;
+  const r = tooltip.getBoundingClientRect();
+  if (x + r.width > window.innerWidth - 10) x = e.clientX - r.width - pad;
+  if (y + r.height > window.innerHeight - 10) y = e.clientY - r.height - pad;
+  tooltip.style.left = x + 'px'; tooltip.style.top = y + 'px';
+}
+
+function hideTooltip() { tooltip.classList.remove('visible'); }
+
+
+/* ================================================================
+   Legend
+   ================================================================ */
+function buildLegend(visRadius) {
+  const legendSection = document.getElementById('legend-section');
+  legendSection.style.display = '';
+
+  const gradBar = document.getElementById('temp-gradient');
+  const stops = [];
+  for (let i = 0; i <= 20; i++) stops.push(tempToColor((i / 20) * 3000));
+  gradBar.style.background = `linear-gradient(to right, ${stops.join(', ')})`;
+
+  const sizeRef = document.getElementById('size-ref');
+  const NS = 'http://www.w3.org/2000/svg';
+  [{ label: 'Earth', value: 1.0 }, { label: 'Neptune', value: 3.9 }, { label: 'Jupiter', value: 11.2 }].forEach(ref => {
+    const vr = visRadius(ref.value);
+    const size = Math.max(14, vr * 2 + 4);
+    const item = document.createElement('div');
+    item.className = 'size-ref-item';
+    const s = document.createElementNS(NS, 'svg');
+    s.setAttribute('width', size); s.setAttribute('height', size);
+    const c = document.createElementNS(NS, 'circle');
+    c.setAttribute('cx', size / 2); c.setAttribute('cy', size / 2); c.setAttribute('r', vr);
+    c.setAttribute('fill', 'rgba(100,130,200,0.25)');
+    c.setAttribute('stroke', 'rgba(140,170,220,0.4)'); c.setAttribute('stroke-width', '1');
+    s.appendChild(c); item.appendChild(s);
+    item.innerHTML += `<span class="ref-label">${ref.label}</span><span class="ref-value">${ref.value} R\u2295</span>`;
+    sizeRef.appendChild(item);
+  });
+}
+
+
+/* ================================================================
+   Init
+   ================================================================ */
+(async function main() {
+  try {
+    const raw = await loadCSV();
+    const planets = processData(raw);
+
+    console.log(`Loaded: ${planets.length} planets`);
+    const cc = {};
+    CATEGORIES.forEach(c => { cc[c.label] = 0; });
+    planets.forEach(p => { const c = CATEGORIES.find(x => x.key === p.category); if (c) cc[c.label]++; });
+    console.log('Category counts:', cc);
+    const el = planets.filter(p => p.earthLike);
+    console.log(`Earth-like planets: ${el.length}`, el.map(p => p.name));
+
+    document.querySelector('.headline-stat .total').textContent = planets.length.toLocaleString();
+    animateCounter(document.getElementById('big-number'), 8, 1600);
+
+    const { visRadius } = buildChart(planets);
+    buildLegend(visRadius);
+  } catch (err) {
+    console.error('Failed to load data:', err);
+    document.getElementById('chart-area').innerHTML =
+      '<p style="color:#ef4444;text-align:center;padding:2rem;">Failed to load exoplanet data. Make sure exoplanets.csv is in the same directory.</p>';
+  }
+})();
+</script>
+</body>
+</html>
